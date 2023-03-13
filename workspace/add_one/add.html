@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Add</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body>
+  <p id="num"></p>
+  <button id="btn" type="button">add one</button>
+  <script>
+    window.addEventListener("load", (event) => {
+      const num = document.querySelector("#num");
+      const btn = document.querySelector("#btn");
+
+      const ws = new WebSocket("ws://localhost:3000/ws");
+      ws.onopen = (e) => {
+        console.log("open");
+      }
+
+      ws.onmessage = (e) => {
+        console.log(e.data);
+        num.innerHTML = e.data;
+      }
+
+      ws.onclose = (e) => {
+        console.log("websocket closed");
+      }
+
+
+      btn.addEventListener("click", function (e) {
+        console.log("click");
+        ws.send(0);
+      });
+    });
+
+  </script>
+</body>
+
+</html>

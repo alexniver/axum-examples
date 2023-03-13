@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title></title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+  <div>
+    <input type="text" id="nickname" name="nickname" value="">
+    <button type="button" id="join">Join</button>
+  </div>
+  <div>
+    <textarea rows="10" cols="30" id="msg_list"></textarea>
+  </div>
+  <div>
+    <input type="text" id="msg" name="msg" value="">
+  </div>
+
+  <script>
+    window.addEventListener("load", (event) => {
+      const nickname = document.querySelector("#nickname");
+      const join_btn = document.querySelector("#join");
+      const msg_list = document.querySelector("#msg_list");
+      const msg = document.querySelector("#msg");
+
+      join_btn.addEventListener("click", (e) => {
+        if (!nickname.value) {
+          return;
+        }
+
+        this.disabled = true;
+        const btn = this;
+
+        const ws = new WebSocket("ws://localhost:3000/ws");
+        ws.onopen = () => {
+          console.log("onopen: " + nickname.value);
+          ws.send(nickname.value);
+        }
+
+        ws.onclose = () => {
+          console.log("ws closed");
+          btn.disabled = false;
+        }
+
+        ws.onmessage = (e) => {
+          msg_list.value += e.data + "\r\n";
+          console.log("onmessage: " + e.data);
+        }
+
+        msg.onkeydown = (e) => {
+          if (e.key == "Enter") {
+            ws.send(msg.value);
+            console.log("onkeydown: " + msg.value);
+            msg.value = "";
+          }
+        }
+
+      });
+
+    });
+  </script>
+
+
+</body>
+
+</html>
