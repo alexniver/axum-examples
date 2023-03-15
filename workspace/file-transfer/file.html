@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title></title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+  <div>
+    <input id="file" type="file" name="file" value="">
+  </div>
+  <div>
+    <button id="btn" type="button">Upload</button>
+  </div>
+
+  <div>
+    <p id="file_names"></p>
+  </div>
+  <div>
+    <input id="file_download" type="text" name="file_download" value="">
+  </div>
+
+  <script>
+    window.addEventListener("load", (e) => {
+      const file_names = document.querySelector("#file_names");
+      const files = document.querySelector("#file");
+      const btn = document.querySelector("#btn");
+
+      const ws = new WebSocket("ws://localhost:3000/ws");
+      ws.binaryType = "arraybuffer";
+
+      const encoder = new TextEncoder(); // always utf-8, Uint8Array()
+      const decoder = new TextDecoder();
+
+      ws.onopen = () => {
+        console.log("open");
+
+        // query file list
+        const method_arr = new Uint8Array(1);
+        method_arr[0] = 1;
+
+        const total_len_arr = intToArray(1);
+
+        let sendData = new Uint8Array(4 + 1);
+        sendData.set(total_len_arr, 0);
+        sendData.set(method_arr, 4);
+        ws.send(sendData);
+      }
+
+      ws.onclose = () => {
+        console.log("closed");
+      }
+
+      ws.onmessage = (e) => {
+        let data = e.data;
+        let data_view = new DataView(data);
+        let len = data_view.getUint32(0, true);
+
+        let value = "";
+
+        let i = 4;
+        while (i < len) {
+          let l = data_view.getUint32(i, true);
+          i += 4;
+          let name = decoder.decode(data.slice(i, i + l));
+          value += name;
+          value += ",";
+          i += l;
+        }
+
+        if (value.length > 0) {
+          value = value.substring(0, value.length - 1);
+        }
+        // console.log(value);
+        file_names.innerHTML = value;
+      }
+
+      btn.addEventListener("click", (e) => {
+        let file = files.files[0];
+        const reader = new FileReader();
+
+        reader.onabort = function (e) { /* @TODO */}
+        reader.onerror = function (e) { /* @TODO */}
+        reader.onloadstart = function (e) { /* @TODO */}
+        reader.onprogress = function (e) { /* @TODO */}
+        reader.onload = function (e) // only triggered if successful
+        {
+          let file_data = e.target.result;
+          console.log(file_data);
+          const file_data_len_arr = intToArray(file_data.byteLength);
+          console.log("file_data_len_arr: " + file_data_len_arr);
+          const method_arr = new Uint8Array(1);
+          method_arr[0] = 2;
+
+          const file_name_arr = encoder.encode(file.name);
+          const file_name_len_arr = intToArray(file_name_arr.length);
+          console.log("file_name_len_arr: " + file_name_len_arr);
+          let total_len = 1 + 4 + file_name_arr.length + 4 + file_data.byteLength;
+          const total_len_arr = intToArray(total_len);
+          console.log(total_len_arr)
+
+
+          let sendData = new Uint8Array(4 + total_len);
+          let idx = 0;
+          sendData.set(new Uint8Array(total_len_arr), idx);
+          idx += 4;
+          sendData.set(new Uint8Array(method_arr), idx);
+          idx += 1;
+          sendData.set(new Uint8Array(file_name_len_arr), idx);
+          idx += 4;
+          sendData.set(new Uint8Array(file_name_arr), idx);
+          idx += file_name_arr.length;
+          sendData.set(new Uint8Array(file_data_len_arr), idx);
+          idx += 4;
+          sendData.set(new Uint8Array(file_data), idx);
+          ws.send(sendData);
+        }
+
+        reader.readAsArrayBuffer(file); // _must_ use ArrayBuffer
+      });
+    });
+
+    // little edian
+    function intToArray(i) {
+      return Uint8Array.of(
+        (i & 0x000000ff) >> 0,
+        (i & 0x0000ff00) >> 8,
+        (i & 0x00ff0000) >> 16,
+        (i & 0xff000000) >> 24,
+      );
+    }
+
+    // little edian
+    function arrayToInt(bs, start) {
+      start = start || 0;
+      const bytes = bs.subarray(start, start + 4).reverse();
+      let n = 0;
+      for (const byte of bytes.values()) {
+        n = (n << 8) | byte;
+      }
+      return n;
+    }
+  </script>
+
+</body>
+
+</html>
