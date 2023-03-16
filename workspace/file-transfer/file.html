@@ -18,17 +18,17 @@
   <div>
     <p id="file_names"></p>
   </div>
-  <div>
-    <input id="file_download" type="text" name="file_download" value="">
-  </div>
-
+  <script src="https://cdn.bootcss.com/vConsole/3.3.0/vconsole.min.js"></script>
+  <script>
+    var vConsole = new VConsole();
+  </script>
   <script>
     window.addEventListener("load", (e) => {
       const file_names = document.querySelector("#file_names");
       const files = document.querySelector("#file");
       const btn = document.querySelector("#btn");
 
-      const ws = new WebSocket("ws://localhost:3000/ws");
+      const ws = new WebSocket("ws://" + location.host + "/ws");
       ws.binaryType = "arraybuffer";
 
       const encoder = new TextEncoder(); // always utf-8, Uint8Array()
@@ -49,7 +49,8 @@
         ws.send(sendData);
       }
 
-      ws.onclose = () => {
+      ws.onclose = (e) => {
+        console.log(e);
         console.log("closed");
       }
 
@@ -65,8 +66,7 @@
           let l = data_view.getUint32(i, true);
           i += 4;
           let name = decoder.decode(data.slice(i, i + l));
-          value += name;
-          value += ",";
+          value += "<div><a href=\"" + location.href + "upload/" + name + "\">" + name + "<a></div>";
           i += l;
         }
 
