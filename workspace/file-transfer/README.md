@@ -1,4 +1,8 @@
-# Data Struct
+# A File Share Server
+
+## Use websocket to upload file, use stream download file
+
+## Data Struct
 
 ``` doc
 TotalLen(u32)Method(u8) DataLen(u32)Data([u8]) DataLen(u32)Data([u8])
