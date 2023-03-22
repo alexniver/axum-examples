@@ -15,3 +15,4 @@ tower-http={version="0.4", features=["fs", "trace"]}
 tracing = "0.1"
 tracing-subscriber = {version="0.3", features=["env-filter"]}
 mime_guess="2"
+bytes="1.4"

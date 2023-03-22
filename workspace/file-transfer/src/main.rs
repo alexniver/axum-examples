@@ -18,6 +18,7 @@ use axum::{
     routing::get,
     Router,
 };
+use bytes::{Buf, Bytes};
 use futures::{SinkExt, StreamExt};
 use tokio::{
     fs::File,
@@ -85,12 +86,11 @@ async fn websocket(ws: WebSocket, state: Arc<AppState>) {
                     error!("data len less than 5");
                     break;
                 }
-                let mut idx = 0;
 
-                let _len = i32::from_le_bytes(data[idx..4].try_into().unwrap());
-                idx += 4;
-                let method_u8 = data[idx];
-                idx += 1;
+                let mut b = Bytes::from(data);
+
+                let _len = b.get_i32_le();
+                let method_u8 = b.get_u8();
                 // debug!("len: {:?}", len);
                 // debug!("method: {:?}", method_u8);
                 match method_u8 {
@@ -99,21 +99,19 @@ async fn websocket(ws: WebSocket, state: Arc<AppState>) {
                     }
                     2 => {
                         // 2: upload file, totallen-len-filename-len-filedata
-                        let name_len = i32::from_le_bytes(data[idx..idx + 4].try_into().unwrap());
-                        idx += 4;
+                        let name_len = b.get_i32_le() as usize;
 
-                        let name = String::from_utf8(data[idx..(idx + name_len as usize)].to_vec())
-                            .unwrap();
-                        idx += name_len as usize;
+                        let name = String::from_utf8(b.split_to(name_len).to_vec()).unwrap();
 
-                        let _data_len = i32::from_le_bytes(data[idx..idx + 4].try_into().unwrap());
-                        // debug!("data len: {:?}, {:?}", _data_len, data.len());
-                        idx += 4;
-                        // debug!("data idx... len {:?}", &data[idx..(idx + 10)]);
+                        let _data_len = b.get_i32_le();
                         // Create the file. `File` implements `AsyncWrite`.
                         let path = std::path::Path::new(UPLOAD_DIR).join(name);
                         let mut file = BufWriter::new(File::create(path).await.unwrap());
-                        let mut data_reader = BufReader::new(&data[idx..]);
+
+                        let len = b.remaining();
+                        let bytes = b.take(len).into_inner().to_vec();
+                        let u8_slice: &[u8] = bytes.as_slice();
+                        let mut data_reader = BufReader::new(u8_slice);
 
                         // Copy the body into the file.
                         tokio::io::copy(&mut data_reader, &mut file).await.unwrap();
