@@ -18,7 +18,7 @@ use axum::{
     routing::get,
     Router,
 };
-use bytes::{Buf, Bytes};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures::{SinkExt, StreamExt};
 use tokio::{
     fs::File,
@@ -127,18 +127,22 @@ async fn websocket(ws: WebSocket, state: Arc<AppState>) {
     let mut send = tokio::spawn(async move {
         while let Ok(_) = rx.recv().await {
             let mut files = tokio::fs::read_dir(UPLOAD_DIR).await.unwrap();
-            let mut resp = vec![];
+            let mut bts = BytesMut::new();
+            bts.put_i32(0);
 
             while let Ok(Some(file)) = files.next_entry().await {
                 let name = file.file_name().into_string().unwrap();
-                let name_bytes = name.clone().into_bytes();
-                resp.extend(i32::to_le_bytes(name_bytes.len() as i32));
-                resp.extend(name_bytes);
+                let name_bytes = name.into_bytes();
+                bts.put_i32_le(name_bytes.len() as i32);
+                bts.put(&name_bytes[..]);
             }
 
-            let mut resp_data = i32::to_le_bytes(resp.len() as i32).to_vec();
-            resp_data.append(&mut resp);
-            let _ = sender.send(Message::Binary(resp_data)).await;
+            let len = bts.len() as i32;
+            {
+                let (first, _) = bts.split_at_mut(4);
+                first.copy_from_slice(i32::to_le_bytes(len).to_vec().as_slice());
+            }
+            let _ = sender.send(Message::Binary(bts.to_vec())).await;
         }
     });
 
